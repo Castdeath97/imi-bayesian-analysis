@@ -28,6 +28,7 @@ The data is loaded from a .Rdata file containing the Riesby data-set introduced 
 ```{r data, echo=FALSE}
 
 load("Reisby.RData")
+Reisby = as.data.frame(Reisby)
 
 ```
 
@@ -51,7 +52,7 @@ The strongest correlations are negative and weak-moderate, and occur between Ham
 
 ```{r ham-hist, echo=FALSE}
 
-hist(Reisby[,2], main = "Hamilton Index Scores Histogram",
+hist(Reisby$hd, main = "Hamilton Index Scores Histogram",
      xlab = "Hamilton Score")
 
 ```
@@ -64,7 +65,7 @@ Most Hamilton scores are above 20 (i.e. moderate and severe depression dominates
 
 # Replace x axis here with male/female axis
 
-hist(Reisby[,6], main = "Sex Histogram",
+hist(Reisby$female, main = "Sex Histogram",
      xlab = "Sex", xaxt = "n", ylim = c(0, 200)) 
 axis(1, at=0:1, labels=c("Male","Female"))
 
@@ -78,7 +79,7 @@ The female test subjects are overwhelmingly higher than the males (nearly double
 
 ```{r dep-type-hist, echo=FALSE}
 
-hist(Reisby[,7], main = "Depression Type Histogram",
+hist(Reisby$reactive_depression, main = "Depression Type Histogram",
      xlab = "Depression Type", xaxt = "n", ylim = c(0, 150)) 
 axis(1, at=0:1, labels=c("Endogenous","Reactive"))
 
@@ -92,7 +93,7 @@ Most Depression cases in the test population are Endogenous (i.e. not a reaction
 
 ```{r dmi-imi-boxplot, echo=FALSE}
 
-boxplot(Reisby[,4], Reisby[,5], main = "IMI and DMI Concentration Distributions",
+boxplot(Reisby$lnimi, Reisby$lndmi, main = "IMI and DMI Concentration Distributions",
         ylab = "Log Concentraion") 
 axis(1, at=0:2, labels=c("IMI","IMI", "DMI")) # uses 3 labels due to strange bug
 
@@ -100,18 +101,51 @@ axis(1, at=0:2, labels=c("IMI","IMI", "DMI")) # uses 3 labels due to strange bug
 
 Generally tight distribution *especially around 25% to 75%) for both with little outlines with both distribution looking nearly identical sans the shift up with DMI. It seems that after being processed as DMI, the concentration of the antidepressant in the blood increases.
 
-## Data Cleaning
+## Data Cleaning and Preparation
 
-### Indicators
+### Weeks 
 
-### Weeks (Placebo)
+```{r clean-weeks, echo = FALSE}
 
-### Sex
+placebo = c(ifelse(Reisby$week == 0, 1, 0))
+  
+```
 
+
+There are going to be two weeks variables, the initial week number for Autoregressiona and Gaussian Proccess, and another or on whether it is a placebo week or not for linear regression. 
+
+### Standardisation and Predictor Separation
+
+The response (hamilton index) and predictors (everything else) are separated for the modelling stage. Two sets of predictors (x) are used, one for linear regression (uses placebo indicator for weeks) and one for other time series based methods (uses normal weeks). All non indicator variables are standardised using a to ensure a fair impacts between variables and easier uninformative prior selection.
+
+```{r pred-sep, echo = FALSE}
+
+lin_x = Reisby[,-1:-3]
+lin_x$placebo = placebo
+x = Reisby[,-1:-2]
+y = Reisby[,1]
+
+```
+
+
+```{r std, echo = FALSE}
+
+y_scaled = (y - mean(y))/sd(y)
+scaled_dmi = (Reisby$lnimi - mean(Reisby$lnimi))/sd(Reisby$lnimi)
+scaled_imi = (Reisby$lndmi - mean(Reisby$lndmi))/sd(Reisby$lndmi)
+
+x_scaled = x[, -2:-3]
+lin_x_scaled = lin_x[, -1:-2]
+
+x_scaled$scaled_dmi = scaled_dmi
+x_scaled$scaled_imi = scaled_imi
+lin_x_scaled$scaled_dmi = scaled_dmi
+lin_x_scaled$scaled_imi = scaled_imi
+
+```
 
 
 # Models
-
 
 ## Linear Regression
 
@@ -219,3 +253,10 @@ AR(2) - Auto Regressive Models (2nd Degree)
 
 ```
 
+#### Weeks Cleaining
+
+```{r, ref.label= 'weeks-cleaning', echo=TRUE, eval=FALSE}
+
+Reisby$placebo = c(ifelse(Reisby$week == 0, 1, 0))
+  
+```
