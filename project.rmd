@@ -9,6 +9,8 @@ output: pdf_document
 ```{r setup, include=FALSE}
 
 library(knitr)
+library(rjags)
+
 opts_chunk$set(echo = TRUE)
 
 ```
@@ -149,11 +151,57 @@ lin_x_scaled$scaled_imi = scaled_imi
 
 ## Linear Regression
 
+In this method a relationship between a predictor x and a response y is establised through a Linear Function with a coefficient the predictors and the intercept. 
+
 ### Basic Multiple 
+
+Multiple Linear Regression is a simple extension of Linear regression where multiple predictors each with their own coefficients are introduced.
 
 #### Modelling and Diagnostics
 
+```{r lin-mod, echo = FALSE}
+
+data = list(x = lin_x_scaled, y = y_scaled,
+            n = nrow(lin_x_scaled), p = ncol(lin_x_scaled))
+
+# JAG model (as a string)
+
+model_string = "
+model {
+  b0 ~ dnorm(0, 1E-6)
+
+  for (j in 1:p) {
+    b[j] ~ dnorm(0, 1E-6)
+  }
+
+  tau ~ dgamma(0.001, 0.001)
+  sd = pow(tau, -0.5)
+
+  for (i in 1:n) {
+    y[i] ~ dnorm(mu[i], tau)
+    mu[i] = b0 + inprod(b, x[i,])
+  }
+}
+"
+
+# model construction and sampling
+
+model_tc = textConnection(model_string)
+model = jags.model(model_tc, data = data, n.chains = 4)
+
+# update(model, n.iter = 1000)
+samples = coda.samples(model, 
+                       variable.names = c("b0","sd","b"),
+                       n.iter = 1000)
+
+```
+
+
 #### Summaries
+
+```{r lin-sum}
+
+```
 
 ### Term Interactions
 
@@ -196,6 +244,7 @@ Not everyone was measured every week.
 # Conclusion
 
 
+\newpage
 
 # Appendix
 
@@ -257,6 +306,13 @@ AR(2) - Auto Regressive Models (2nd Degree)
 
 ```{r, ref.label= 'weeks-cleaning', echo=TRUE, eval=FALSE}
 
-Reisby$placebo = c(ifelse(Reisby$week == 0, 1, 0))
-  
 ```
+
+### Models
+
+#### Basic Multiple Linear Regression
+
+```{r, ref.label= 'lin-mod', echo=TRUE, eval=FALSE}
+
+```
+
