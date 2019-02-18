@@ -1,0 +1,45 @@
+---
+title: "Bayesain Project"
+author: "Ammar Hasan"
+date: "18 February 2019"
+toc: T
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+
+library(knitr)
+opts_chunk$set(echo = TRUE)
+
+```
+
+## Introduction
+
+## Data Setup and Cleaning
+
+```{r ch, echo=FALSE}
+
+y = 5
+print(y)
+
+```
+
+```{r k, echo=FALSE}
+
+x = 7
+
+```
+
+
+## Data Exploration
+
+## Linear Regression
+
+## ...
+
+## Appendix
+
+
+```{r, ref.label= 'ch', echo=TRUE, eval=FALSE}
+
+```
