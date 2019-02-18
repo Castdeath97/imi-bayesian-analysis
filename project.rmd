@@ -149,6 +149,15 @@ lin_x_scaled$scaled_imi = scaled_imi
 
 # Models
 
+## General Diagnostic notes
+
+For diagnostics, all models start with 1000 samples with no thinning and no burn in discard. The models are then diagnosed using the following techniques/measurements:
+
+* Trace plots: Used to observe general mixing via parameter values, aim to have random caterpillar like shape.
+* Effective Size: Used to observe correlation effect on data by check how effective the samples are compared to independent data. Aim to have them consistently close and somewhere near half the samples.
+* Gelman Rubin: Used to check convergence of model through comparing chains, aim to have value of 1 or very close to 1.
+* Autocolleration Plots: Useful to check need for thinning and thinning effect by checking sample correlations between each other, lags presented here should remain consistently low.
+
 ## Linear Regression
 
 In this method a relationship between a predictor x and a response y is establised through a Linear Function with a coefficient the predictors and the intercept. 
@@ -189,13 +198,12 @@ model {
 model_tc = textConnection(model_string)
 model = jags.model(model_tc, data = data, n.chains = 4)
 
-# update(model, n.iter = 1000)
+update(model, n.iter = 1000)
 samples = coda.samples(model, 
                        variable.names = c("b0","sd","b"),
-                       n.iter = 1000)
+                       n.iter = 8*1500, thin = 8)
 
 ```
-
 
 #### Summaries
 
