@@ -17,14 +17,13 @@ opts_chunk$set(echo = TRUE)
 
 # Introduction
 
-This report summaries the Bayesian analysis of the Reisby Dataset. The Reisby Dataset is based on a 5 week (first placebo) psychiatric study which investigates response of depressed patients to IMI. The Bayesian analysis will investigate how the drug affects depression. 
-
+This report summaries the Bayesian analysis of the Reisby data-set. The Reisby data-set is based on a 5 week (first placebo) psychiatric study which investigates response of depressed patients to IMI. The Bayesian analysis will investigate how the drug affects depression. 
 
 # Data Setup and Cleaning
 
 ## Data
 
-The data is loaded from a .Rdata file containing the Riesby Dataset introduced in the introduction.
+The data is loaded from a .Rdata file containing the Riesby data-set introduced in the introduction.
 
 ```{r data, echo=FALSE}
 
@@ -34,17 +33,72 @@ load("Reisby.RData")
 
 ## Data Exploration
 
-### Correlation
+### Correlation (Pairs Plot)
+
+```{r pairs, echo = FALSE}
+
+kable(cor(Reisby[,-1])) # no id
+
+```
+
+The strongest correlations are negative and weak-moderate, and occur between Hamilton index with week and DMI, and rather obvious as the increase in blood concentration of the antidepressant would alleviate depression over weeks of treatment. Most other correlations are weak to very weak.
+
+\newpage
 
 ### Graphical Summaries 
 
 #### Hamilton Scores
 
+```{r ham-hist, echo=FALSE}
+
+hist(Reisby[,2], main = "Hamilton Index Scores Histogram",
+     xlab = "Hamilton Score")
+
+```
+
+Most Hamilton scores are above 20 (i.e. moderate and severe depression dominates against mild and normal)
+
 #### Sex
 
-#### Reactive vs Endogenous
+```{r sex-hist, echo=FALSE}
+
+# Replace x axis here with male/female axis
+
+hist(Reisby[,6], main = "Sex Histogram",
+     xlab = "Sex", xaxt = "n", ylim = c(0, 200)) 
+axis(1, at=0:1, labels=c("Male","Female"))
+
+```
+
+The female test subjects are overwhelmingly higher than the males (nearly double!).
+
+\newpage
+
+#### Endogenous vs Reactive (Depression Type)
+
+```{r dep-type-hist, echo=FALSE}
+
+hist(Reisby[,7], main = "Depression Type Histogram",
+     xlab = "Depression Type", xaxt = "n", ylim = c(0, 150)) 
+axis(1, at=0:1, labels=c("Endogenous","Reactive"))
+
+```
+
+Most Depression cases in the test population are Endogenous (i.e. not a reaction to an environmental event).
+
+\newpage
 
 #### DMI and IMI Concentrations
+
+```{r dmi-imi-boxplot, echo=FALSE}
+
+boxplot(Reisby[,4], Reisby[,5], main = "IMI and DMI Concentration Distributions",
+        ylab = "Log Concentraion") 
+axis(1, at=0:2, labels=c("IMI","IMI", "DMI")) # uses 3 labels due to strange bug
+
+```
+
+Generally tight distribution *especially around 25% to 75%) for both with little outlines with both distribution looking nearly identical sans the shift up with DMI. It seems that after being processed as DMI, the concentration of the antidepressant in the blood increases.
 
 ## Data Cleaning
 
@@ -127,6 +181,41 @@ AR(2) - Auto Regressive Models (2nd Degree)
 
 ## Code
 
+### Data
+
+#### Data Loading
+
 ```{r, ref.label= 'data', echo=TRUE, eval=FALSE}
 
 ```
+
+#### Correlation (Pairs Plot)
+
+```{r, ref.label= 'pairs', echo=TRUE, eval=FALSE}
+
+```
+
+#### Hamilton Scores Histogram
+
+```{r, ref.label= 'ham-hist', echo=TRUE, eval=FALSE}
+
+```
+
+#### Sex Histogram
+
+```{r, ref.label= 'sex-hist', echo=TRUE, eval=FALSE}
+
+```
+
+#### Depression Type Histogram
+
+```{r, ref.label= 'dep-type-hist', echo=TRUE, eval=FALSE}
+
+```
+
+#### DMI and IMI Boxplot
+
+```{r, ref.label= 'dmi-imi-boxplot', echo=TRUE, eval=FALSE}
+
+```
+
