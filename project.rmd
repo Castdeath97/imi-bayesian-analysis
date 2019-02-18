@@ -114,11 +114,11 @@ placebo = c(ifelse(Reisby$week == 0, 1, 0))
 ```
 
 
-There are going to be two weeks variables, the initial week number for Autoregressiona and Gaussian Proccess, and another or on whether it is a placebo week or not for linear regression. 
+There are going to be two weeks variables, the initial week number for Autoregression and Gaussian Proccess, and another or on whether it is a placebo week or not for linear regression. 
 
 ### Standardisation and Predictor Separation
 
-The response (hamilton index) and predictors (everything else) are separated for the modelling stage. Two sets of predictors (x) are used, one for linear regression (uses placebo indicator for weeks) and one for other time series based methods (uses normal weeks). All non indicator variables are standardised using a to ensure a fair impacts between variables and easier uninformative prior selection.
+The response (Hamilton index) and predictors (everything else) are separated for the modelling stage. Two sets of predictors (x) are used, one for linear regression (uses placebo indicator for weeks) and one for other time series based methods (uses normal weeks). All non indicator variables are standardised using a to ensure a fair impacts between variables and easier uninformative prior selection.
 
 ```{r pred-sep, echo = FALSE}
 
@@ -160,7 +160,7 @@ For diagnostics, all models start with 1000 samples with no thinning and no burn
 
 ## Linear Regression
 
-In this method a relationship between a predictor x and a response y is establised through a Linear Function with a coefficient the predictors and the intercept. 
+In this method a relationship between a predictor x and a response y is established through a Linear Function with a coefficient the predictors and the intercept. 
 
 ### Basic Multiple 
 
@@ -234,19 +234,11 @@ Not everyone was measured every week.
 
 #### Summaries
 
-### AR(2)
+### Investigating Ideal Degree (finding p)
 
 #### Modelling and Diagnostics
 
 #### Summaries
-
-
-## Gaussain Process
-
-### Modelling and Diagnostics
-
-### Summaries
-
 
 
 # Conclusion
@@ -268,6 +260,9 @@ AR(1) - Auto Regressive Models (1st Degree)
 
 AR(2) - Auto Regressive Models (2nd Degree)
 
+JAGS - Just Another Gibbs Sampler MCMC based Bayesian sampler 
+
+MCMC - Markov chain Monte Carlo
 
 
 ## Code
