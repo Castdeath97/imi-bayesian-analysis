@@ -13,33 +13,120 @@ opts_chunk$set(echo = TRUE)
 
 ```
 
-## Introduction
+\newpage
 
-## Data Setup and Cleaning
+# Introduction
 
-```{r ch, echo=FALSE}
+This report summaries the Bayesian analysis of the Reisby Dataset. The Reisby Dataset is based on a 5 week (first placebo) psychiatric study which investigates response of depressed patients to IMI. The Bayesian analysis will investigate how the drug affects depression. 
 
-y = 5
-print(y)
+
+# Data Setup and Cleaning
+
+## Data
+
+The data is loaded from a .Rdata file containing the Riesby Dataset introduced in the introduction.
+
+```{r data, echo=FALSE}
+
+load("Reisby.RData")
 
 ```
-
-```{r k, echo=FALSE}
-
-x = 7
-
-```
-
 
 ## Data Exploration
 
+### Correlation
+
+### Graphical Summaries 
+
+#### Hamilton Scores
+
+#### Sex
+
+#### Reactive vs Endogenous
+
+#### DMI and IMI Concentrations
+
+## Data Cleaning
+
+### Indicators
+
+### Weeks (Placebo)
+
+### Sex
+
+
+
+# Models
+
+
 ## Linear Regression
 
-## ...
+### Basic Multiple 
 
-## Appendix
+#### Modelling and Diagnostics
+
+#### Summaries
+
+### Term Interactions
+
+#### Modelling and Diagnostics
+
+#### Summaries
+
+Not everyone was measured every week.
+
+### Hierarchical
+
+#### Modelling and Diagnostics
+
+#### Summaries
 
 
-```{r, ref.label= 'ch', echo=TRUE, eval=FALSE}
+## Auto Regression
+
+### AR(1)
+
+#### Modelling and Diagnostics
+
+#### Summaries
+
+### AR(2)
+
+#### Modelling and Diagnostics
+
+#### Summaries
+
+
+## Gaussain Process
+
+### Modelling and Diagnostics
+
+### Summaries
+
+
+
+# Conclusion
+
+
+
+# Appendix
+
+## Abbrevations 
+
+IMI - antidepressant drug imipramine 
+
+DMI - desmethylimipramlne (Processed IMI)
+
+AR - Auto Regressive Models
+
+AR(1) - Auto Regressive Models (1st Degree)
+
+AR(2) - Auto Regressive Models (2nd Degree)
+
+
+
+## Code
+
+```{r, ref.label= 'data', echo=TRUE, eval=FALSE}
 
 ```
