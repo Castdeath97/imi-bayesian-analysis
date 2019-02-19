@@ -171,8 +171,7 @@ Multiple Linear Regression is a simple extension of Linear regression where mult
 
 data = list(x = lin_x_scaled, y = y,
             n = nrow(lin_x_scaled), 
-            p = ncol(lin_x_scaled),
-            n_test = 50)
+            p = ncol(lin_x_scaled))
 
 # JAG model (as a string)
 
@@ -187,15 +186,11 @@ model {
   tau ~ dgamma(0.001, 0.001)
   sd = pow(tau, -0.5)
 
-  for (i in 1:((n-n_test)-1)) {
+  for (i in 1:n) {
     y[i] ~ dnorm(mu[i], tau) T(0,60)
     mu[i] = b0 + inprod(b, x[i,])
   }
 
-  for (k in (n-n_test):n) {
-    y_test[k] ~ dnorm(mu_test[k], tau) T(0,60)
-    mu_test[k] = b0 + inprod(b, x[k,])
-  }
 }
 "
 
@@ -204,16 +199,16 @@ model {
 model_tc = textConnection(model_string)
 model = jags.model(model_tc, data = data, n.chains = 4)
 
-update(model, n.iter = 1000)
+update(model, n.iter = 2000)
 samples = coda.samples(model, 
-                       variable.names = c("b0","sd","b", "y_test"),
-                       n.iter = 1000 * 30, thin = 30)
+                       variable.names = c("b0","sd","b"),
+                       n.iter = 2000 * 13, thin = 13)
 
 ```
 
 The model was constructed in JAGS using a multiple linear regression based on a normal model using uninformative priors gamma (0.001, 0.001) for precision and N(0, 1E-6) for coefficients. The final model is truncated to values between 0 and 60 since this is the range for the Hamilton scores.
 
-The model was difficult to configure as $b0$, $b1$ and $b2$ had mixing issues observable in the trace plot, which only improved after a burn in and thinning. The level thinning was decided on using the autocorrelation plot which showed a need of thinning every 30th value for $b0$! When it came to other metrics, effective size reflected the high correlation with the $beta$ parameters - around 460 for $B1$ and 308 for $b0$, nearly half of other parameters, but siginifcantly improved after thinning - most parameters around 3900-4300. Convergence was not a problem according to gelman diag diagnostics. 
+The model was difficult to configure as $b0$, $b1$ and $b2$ had mixing issues observable in the trace plot, which only improved after a burn in and thinning. The level thinning was decided on using the autocorrelation plot which showed a need of thinning every 10th value for $b0$! When it came to other metrics, effective size reflected the high correlation with the $beta$ parameters - around 490 for $B1$ and 404 for $b0$, more than half of other parameters, but siginifcantly improved after thinning - most parameters around 6840-8380 Convergence was not a problem according to gelman diag diagnostics which remained near or at 1.0.
 
 
 #### Summaries
