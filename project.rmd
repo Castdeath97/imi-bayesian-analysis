@@ -118,21 +118,20 @@ There are going to be two weeks variables, the initial week number for Autoregre
 
 ### Standardisation and Predictor Separation
 
-The response (Hamilton index) and predictors (everything else) are separated for the modelling stage. Two sets of predictors (x) are used, one for linear regression (uses placebo indicator for weeks) and one for other time series based methods (uses normal weeks). All non indicator variables are standardised using a to ensure a fair impacts between variables and easier uninformative prior selection.
+The response (Hamilton index) and predictors (everything else) are separated for the modelling stage. Two sets of predictors (x) are used, one for linear regression (uses placebo indicator for weeks) and one for other time series based methods (uses normal weeks). All non indicator predictors are standardised using a to ensure a fair impacts between variables and easier uninformative prior selection.
 
 ```{r pred-sep, echo = FALSE}
 
 lin_x = Reisby[,-1:-3]
 lin_x$placebo = placebo
 x = Reisby[,-1:-2]
-y = Reisby[,1]
+y = Reisby[,2]
 
 ```
 
 
 ```{r std, echo = FALSE}
 
-y_scaled = (y - mean(y))/sd(y)
 scaled_dmi = (Reisby$lnimi - mean(Reisby$lnimi))/sd(Reisby$lnimi)
 scaled_imi = (Reisby$lndmi - mean(Reisby$lndmi))/sd(Reisby$lndmi)
 
@@ -170,14 +169,16 @@ Multiple Linear Regression is a simple extension of Linear regression where mult
 
 ```{r lin-mod, echo = FALSE}
 
-data = list(x = lin_x_scaled, y = y_scaled,
-            n = nrow(lin_x_scaled), p = ncol(lin_x_scaled))
+data = list(x = lin_x_scaled, y = y,
+            n = nrow(lin_x_scaled), 
+            p = ncol(lin_x_scaled),
+            n_test = 50)
 
 # JAG model (as a string)
 
 model_string = "
 model {
-  b0 ~ dnorm(0, 1E-6)
+  b0 ~ dnorm(0, 1E-6) 
 
   for (j in 1:p) {
     b[j] ~ dnorm(0, 1E-6)
@@ -186,9 +187,14 @@ model {
   tau ~ dgamma(0.001, 0.001)
   sd = pow(tau, -0.5)
 
-  for (i in 1:n) {
-    y[i] ~ dnorm(mu[i], tau)
+  for (i in 1:((n-n_test)-1)) {
+    y[i] ~ dnorm(mu[i], tau) T(0,60)
     mu[i] = b0 + inprod(b, x[i,])
+  }
+
+  for (k in (n-n_test):n) {
+    y_test[k] ~ dnorm(mu_test[k], tau) T(0,60)
+    mu_test[k] = b0 + inprod(b, x[k,])
   }
 }
 "
@@ -200,16 +206,32 @@ model = jags.model(model_tc, data = data, n.chains = 4)
 
 update(model, n.iter = 1000)
 samples = coda.samples(model, 
-                       variable.names = c("b0","sd","b"),
-                       n.iter = 8*1500, thin = 8)
+                       variable.names = c("b0","sd","b", "y_test"),
+                       n.iter = 1000 * 30, thin = 30)
 
 ```
+
+The model was constructed in JAGS using a multiple linear regression based on a normal model using uninformative priors gamma (0.001, 0.001) for precision and N(0, 1E-6) for coefficients. The final model is truncated to values between 0 and 60 since this is the range for the Hamilton scores.
+
+The model was difficult to configure as $b0$, $b1$ and $b2$ had mixing issues observable in the trace plot, which only improved after a burn in and thinning. The level thinning was decided on using the autocorrelation plot which showed a need of thinning every 30th value for $b0$! When it came to other metrics, effective size reflected the high correlation with the $beta$ parameters - around 460 for $B1$ and 308 for $b0$, nearly half of other parameters, but siginifcantly improved after thinning - most parameters around 3900-4300. Convergence was not a problem according to gelman diag diagnostics. 
+
 
 #### Summaries
 
-```{r lin-sum}
+```{r}
 
 ```
+
+#### Predictions
+
+```{r lin-sum}
+
+par(mfrow = c(1,2))
+hist(colMeans(samples[[1]][,8:57]))
+hist(Reisby$hd[201:50])
+
+```
+
 
 ### Term Interactions
 
