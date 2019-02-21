@@ -10,6 +10,7 @@ output: pdf_document
 
 library(knitr)
 library(rjags)
+library(plyr)
 
 opts_chunk$set(echo = TRUE)
 
@@ -103,49 +104,6 @@ axis(1, at=0:2, labels=c("IMI","IMI", "DMI")) # uses 3 labels due to strange bug
 
 Generally tight distribution *especially around 25% to 75%) for both with little outlines with both distribution looking nearly identical sans the shift up with DMI. It seems that after being processed as DMI, the concentration of the antidepressant in the blood increases.
 
-## Data Cleaning and Preparation
-
-### Weeks 
-
-```{r clean-weeks, echo = FALSE}
-
-placebo = c(ifelse(Reisby$week == 0, 1, 0))
-  
-```
-
-
-There are going to be two weeks variables, the initial week number for Autoregression and Gaussian Proccess, and another or on whether it is a placebo week or not for linear regression. 
-
-### Standardisation and Predictor Separation
-
-The response (Hamilton index) and predictors (everything else) are separated for the modelling stage. Two sets of predictors (x) are used, one for linear regression (uses placebo indicator for weeks) and one for other time series based methods (uses normal weeks). All non indicator predictors are standardised using a to ensure a fair impacts between variables and easier uninformative prior selection.
-
-```{r pred-sep, echo = FALSE}
-
-lin_x = Reisby[,-1:-3]
-lin_x$placebo = placebo
-x = Reisby[,-1:-2]
-y = Reisby[,2]
-
-```
-
-
-```{r std, echo = FALSE}
-
-scaled_dmi = (Reisby$lnimi - mean(Reisby$lnimi))/sd(Reisby$lnimi)
-scaled_imi = (Reisby$lndmi - mean(Reisby$lndmi))/sd(Reisby$lndmi)
-
-x_scaled = x[, -2:-3]
-lin_x_scaled = lin_x[, -1:-2]
-
-x_scaled$scaled_dmi = scaled_dmi
-x_scaled$scaled_imi = scaled_imi
-lin_x_scaled$scaled_dmi = scaled_dmi
-lin_x_scaled$scaled_imi = scaled_imi
-
-```
-
-
 # Models
 
 ## General Diagnostic notes
@@ -161,6 +119,44 @@ For diagnostics, all models start with 1000 samples with no thinning and no burn
 
 In this method a relationship between a predictor x and a response y is established through a Linear Function with a coefficient the predictors and the intercept. 
 
+### Data Cleaning and Preparation
+
+#### Weeks 
+
+```{r clean-weeks, echo = FALSE}
+
+placebo = c(ifelse(Reisby$week == 0, 1, 0))
+  
+```
+
+
+There are going to be two weeks variables, the initial week number for Autoregression and Gaussian Proccess, and another or on whether it is a placebo week or not for linear regression. 
+
+#### Standardisation and Predictor Separation
+
+The response (Hamilton index) and predictors (everything else) are separated for the modelling stage. Predictors (x) for linear regression use placebo indicator for weeks instead of actual weeks (not a time series). All non indicator predictors are standardised using a to ensure a fair impacts between variables and easier uninformative prior selection.
+
+```{r pred-sep, echo = FALSE}
+
+x = Reisby[,-2:-3]
+x$placebo = placebo
+y = Reisby[,2]
+
+```
+
+
+```{r std, echo = FALSE}
+
+scaled_dmi = (Reisby$lnimi - mean(Reisby$lnimi))/sd(Reisby$lnimi)
+scaled_imi = (Reisby$lndmi - mean(Reisby$lndmi))/sd(Reisby$lndmi)
+
+lin_x_scaled = x[, -2:-3]
+
+lin_x_scaled$scaled_dmi = scaled_dmi
+lin_x_scaled$scaled_imi = scaled_imi
+
+```
+
 ### Basic Multiple 
 
 Multiple Linear Regression is a simple extension of Linear regression where multiple predictors each with their own coefficients are introduced.
@@ -169,9 +165,9 @@ Multiple Linear Regression is a simple extension of Linear regression where mult
 
 ```{r lin-mod, echo = FALSE}
 
-data = list(x = lin_x_scaled, y = y,
+data = list(x = lin_x_scaled[,-1], y = y,
             n = nrow(lin_x_scaled), 
-            p = ncol(lin_x_scaled))
+            p = ncol(lin_x_scaled[,-1]))
 
 # JAG model (as a string)
 
@@ -199,10 +195,13 @@ model {
 model_tc = textConnection(model_string)
 model = jags.model(model_tc, data = data, n.chains = 4)
 
-update(model, n.iter = 2000)
+update(model, n.iter = 1000)
 samples = coda.samples(model, 
                        variable.names = c("b0","sd","b"),
-                       n.iter = 2000 * 13, thin = 13)
+                       n.iter = 1000 * 13, thin = 13)
+lin_dic = dic.samples(model, 
+                       variable.names = c("b0","sd","b"),
+                       n.iter = 1000 * 13, thin = 13)
 
 ```
 
@@ -213,24 +212,64 @@ The model was difficult to configure as $b0$, $b1$ and $b2$ had mixing issues ob
 
 #### Summaries
 
-```{r}
+```{r lin-mod-sum}
+
+hpd = HPDinterval(samples)
+
+kable(hpd[[1]])
 
 ```
 
 #### Predictions
 
-```{r lin-sum}
+### Term Interactions
 
-par(mfrow = c(1,2))
-hist(colMeans(samples[[1]][,8:57]))
-hist(Reisby$hd[201:50])
+#### Modelling and Diagnostics
+
+```{r lin-mod-term}
+
+data = list(x = lin_x_scaled[,-1], y = y,
+            n = nrow(lin_x_scaled), 
+            p = ncol(lin_x_scaled[,-1]))
+
+# JAG model (as a string)
+
+model_string = "
+model {
+  b0 ~ dnorm(0, 1E-6) 
+  c ~ dnorm(0, 1E-6)
+
+  for (j in 1:p) {
+    b[j] ~ dnorm(0, 1E-6)
+  }
+
+  tau ~ dgamma(0.001, 0.001)
+  sd = pow(tau, -0.5)
+
+  for (i in 1:n) {
+    y[i] ~ dnorm(mu[i], tau) T(0,60)
+    mu[i] = b0 + inprod(b, x[i,]) + c * x[i, 4] * x[i, 5]
+  }
+
+}
+"
+
+# model construction and sampling
+
+model_tc = textConnection(model_string)
+model = jags.model(model_tc, data = data, n.chains = 4)
+
+update(model, n.iter = 1000)
+samples = coda.samples(model, 
+                       variable.names = c("b0","sd","b", "c"),
+                       n.iter = 1000 * 13, thin = 13)
+dic_terms = coda.samples(model, 
+                       variable.names = c("b0","sd","b", "c"),
+                       n.iter = 1000 * 13, thin = 13)
 
 ```
 
 
-### Term Interactions
-
-#### Modelling and Diagnostics
 
 #### Summaries
 
@@ -240,12 +279,151 @@ Not everyone was measured every week.
 
 #### Modelling and Diagnostics
 
+
+```{r lin-mod-hie}
+
+data = list(x = lin_x_scaled[,-1], y = y,
+            n = nrow(lin_x_scaled), 
+            p = ncol(lin_x_scaled[,-1]),
+            n_subjects = length(unique(lin_x_scaled[,1])),
+            subject = lin_x_scaled$id)
+
+# JAG model (as a string)
+
+model_string = "
+model {
+  b0 ~ dnorm(0, 1E-6) 
+
+  for (j in 1:p) {
+    b[j] ~ dnorm(0, 1E-6)
+  }
+
+  for (k in 1:n_subjects) {
+    c[k] ~ dnorm(0, tau_hier)
+  }
+
+  tau ~ dgamma(0.001, 0.001)
+  tau_hier ~ dgamma(0.001, 0.001)
+  sd = pow(tau, -0.5)
+  sd_hier = pow(tau_hier, -0.5)
+
+  for (i in 1:n) {
+    y[i] ~ dnorm(mu[i], tau) T(0,60)
+    mu[i] = b0 + inprod(b, x[i,]) + c[subjects[i]]
+  }
+
+}
+"
+
+# model construction and sampling
+
+model_tc = textConnection(model_string)
+model = jags.model(model_tc, data = data, n.chains = 4)
+
+update(model, n.iter = 1000)
+samples = coda.samples(model, 
+                       variable.names = c("b0","sd","b", "sd_hier",
+                                          "c"),
+                       n.iter = 1000 * 13, thin = 13)
+dic_terms = coda.samples(model, 
+                       variable.names = c("b0","sd","b", "sd_hier",
+                                          "c"),
+                       n.iter = 1000 * 13, thin = 13)
+
+```
+
+
+
 #### Summaries
 
 
 ## Auto Regression
 
+### Data Cleaning and Perparation
+### User Matricies
+
+```{r user-mat}
+
+scaled_dmi = (Reisby$lnimi - mean(Reisby$lnimi))/sd(Reisby$lnimi)
+scaled_imi = (Reisby$lndmi - mean(Reisby$lndmi))/sd(Reisby$lndmi)
+
+SReisby = Reisby[, -4:-5]
+SReisby$scaled_dmi = scaled_dmi
+SReisby$scaled_imi = scaled_imi
+
+weekCount = count(SReisby, "id")
+full_ids = subset(weekCount, freq == max(SReisby$week) + 1)
+sub_SReisby = subset(SReisby, id %in% full_ids$id)
+ids = unique(sub_SReisby$id)
+
+
+score_mat = matrix(nrow = length(ids), 
+                  ncol = max(sub_SReisby$week) + 1) 
+imi_mat = matrix(nrow = length(ids), 
+                  ncol = max(sub_SReisby$week) + 1) 
+dmi_mat = matrix(nrow = length(ids), 
+                  ncol = max(sub_SReisby$week) + 1) 
+female_mat = matrix(nrow = length(ids), 
+                  ncol = max(sub_SReisby$week) + 1) 
+dep_mat = matrix(nrow = length(ids), 
+                  ncol = max(sub_SReisby$week) + 1) 
+
+for(i in 1:length(ids)){
+  for(j in 0:max(sub_SReisby$week)){
+    score_mat[i, j+1] = subset(sub_SReisby, id == ids[i] & week == j)$hd
+    imi_mat[i, j+1] = subset(sub_SReisby, id == ids[i] & week == j)$scaled_imi
+    dmi_mat[i, j+1] = subset(sub_SReisby, id == ids[i] & week == j)$scaled_dmi
+    female_mat[i, j+1] = subset(sub_SReisby, id == ids[i] & week == j)$female
+    dep_mat[i, j+1] = subset(sub_SReisby, id == ids[i] & week == j)$reactive_depression
+
+  }
+}
+
+```
+
+
 ### AR(1)
+
+```{r ar1-model}
+
+### Modelling (AR(1))
+
+data = list(y = score_mat, x1 = imi_mat, x2 = dmi_mat, x3 = female_mat,
+            x4 = dep_mat, nrow = nrow(score_mat), ncol = ncol(score_mat),
+            p = 4)
+
+model_string = "
+model {
+
+  for (j in 1:p) {
+    b[j] ~ dnorm(0, 1E-6) 
+  }
+
+  for (i in 1:nrow) {
+    for(k in 2:ncol){
+      y[i,k] ~ dnorm (mu + a1 * (y[i, (k-1)] - mu), tau) T(0,60)
+    }
+  }
+
+  mu ~ dnorm (0, 1E-6) T(0,60)
+  a1 ~ dnorm (0, 0.35^-2) 
+  tau ~ dgamma (0.001, 0.001)
+  sd = pow (tau , -0.5)
+}
+"
+
+model_tc = textConnection(model_string)
+model = jags.model(model_tc, data = data, n.chains = 4)
+
+## Sampling
+
+update(model, n.iter = 4000)
+samples = coda.samples(model, variable.names = c("mu", "a1", "sd",
+                                                 "b"),
+                             n.iter = 1000 * 14, thin = 14)
+
+```
+
 
 #### Modelling and Diagnostics
 
