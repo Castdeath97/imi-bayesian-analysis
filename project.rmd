@@ -260,10 +260,10 @@ model_tc = textConnection(model_string)
 model = jags.model(model_tc, data = data, n.chains = 4)
 
 update(model, n.iter = 1000)
-samples = coda.samples(model, 
+terms_samples = coda.samples(model, 
                        variable.names = c("b0","sd","b", "c"),
                        n.iter = 1000 * 13, thin = 13)
-dic_terms = coda.samples(model, 
+dic_terms = dic.samples(model, 
                        variable.names = c("b0","sd","b", "c"),
                        n.iter = 1000 * 13, thin = 13)
 
@@ -282,11 +282,15 @@ Not everyone was measured every week.
 
 ```{r lin-mod-hie}
 
-data = list(x = lin_x_scaled[,-1], y = y,
-            n = nrow(lin_x_scaled), 
-            p = ncol(lin_x_scaled[,-1]),
+lin_x_scaled_h = lin_x_scaled
+lin_x_scaled_h$id = as.factor(lin_x_scaled$id)
+levels(lin_x_scaled_h$id) <- 1:length(levels(lin_x_scaled_h$id))
+  
+data = list(x = lin_x_scaled_h[,-1], y = y,
+            n = nrow(lin_x_scaled_h), 
+            p = ncol(lin_x_scaled_h[,-1]),
             n_subjects = length(unique(lin_x_scaled[,1])),
-            subject = lin_x_scaled$id)
+            subject = lin_x_scaled_h$id)
 
 # JAG model (as a string)
 
@@ -309,7 +313,7 @@ model {
 
   for (i in 1:n) {
     y[i] ~ dnorm(mu[i], tau) T(0,60)
-    mu[i] = b0 + inprod(b, x[i,]) + c[subjects[i]]
+    mu[i] = b0 + inprod(b, x[i,]) + c[subject[i]]
   }
 
 }
@@ -325,17 +329,14 @@ samples = coda.samples(model,
                        variable.names = c("b0","sd","b", "sd_hier",
                                           "c"),
                        n.iter = 1000 * 13, thin = 13)
-dic_terms = coda.samples(model, 
+dic_hie = dic.samples(model, 
                        variable.names = c("b0","sd","b", "sd_hier",
                                           "c"),
                        n.iter = 1000 * 13, thin = 13)
 
 ```
 
-
-
 #### Summaries
-
 
 ## Auto Regression
 
@@ -401,7 +402,9 @@ model {
 
   for (i in 1:nrow) {
     for(k in 2:ncol){
-      y[i,k] ~ dnorm (mu + a1 * (y[i, (k-1)] - mu), tau) T(0,60)
+      y[i,k] ~ dnorm (mu + a1 * (y[i, (k-1)] - mu) + 
+                 x1[i, k] * b[1] + x2[i, k] * b[2] + 
+                 x3[i, k] * b[3] + x4[i, k] * b[4], tau) T(0,60)
     }
   }
 
@@ -419,6 +422,9 @@ model = jags.model(model_tc, data = data, n.chains = 4)
 
 update(model, n.iter = 4000)
 samples = coda.samples(model, variable.names = c("mu", "a1", "sd",
+                                                 "b"),
+                             n.iter = 1000 * 14, thin = 14)
+ar1_dic = dic.samples(model, variable.names = c("mu", "a1", "sd",
                                                  "b"),
                              n.iter = 1000 * 14, thin = 14)
 
