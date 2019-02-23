@@ -2,7 +2,6 @@
 title: "Bayesain Project"
 author: "Ammar Hasan"
 date: "18 February 2019"
-toc: T
 output: pdf_document
 ---
 
@@ -16,7 +15,23 @@ opts_chunk$set(echo = TRUE)
 
 ```
 
-\newpage
+```{r dic-func, echo=FALSE}
+
+# Creates a table for DIC with a given caption
+dic_table <- function(dic, caption) {
+  
+  mean_dev = round(c(sum(dic$deviance)))
+  pen = round(c(sum(dic$penalty)), 2)
+  mean_pen_dev = round(c(mean_dev+pen))
+  
+  dic.data = data.frame(mean_dev, pen, mean_pen_dev)
+  
+    kable(dic.data, col.names = 
+          c("Deviation", "Penalty", "Penalised Dev."),
+          caption = caption)
+}
+
+```
 
 # Introduction
 
@@ -60,7 +75,9 @@ hist(Reisby$hd, main = "Hamilton Index Scores Histogram",
 
 ```
 
-Most Hamilton scores are above 20 (i.e. moderate and severe depression dominates against mild and normal)
+Most Hamilton scores are above 20 (i.e. moderate and severe depression dominates against mild and normal).
+
+\newpage
 
 #### Sex
 
@@ -111,13 +128,13 @@ Generally tight distribution *especially around 25% to 75%) for both with little
 For diagnostics, all models start with 1000 samples with no thinning and no burn in discard. The models are then diagnosed using the following techniques/measurements:
 
 * Trace plots: Used to observe general mixing via parameter values, aim to have random caterpillar like shape.
-* Effective Size: Used to observe correlation effect on data by check how effective the samples are compared to independent data. Aim to have them consistently close and somewhere near half the samples.
+* Effective size: Used to observe correlation effect on data by check how effective the samples are compared to independent data. Aim to have them consistently close and somewhere near half the samples.
 * Gelman Rubin: Used to check convergence of model through comparing chains, aim to have value of 1 or very close to 1.
-* Autocolleration Plots: Useful to check need for thinning and thinning effect by checking sample correlations between each other, lags presented here should remain consistently low.
+* auto-correlation plots: Useful to check need for thinning and thinning effect by checking sample correlations between each other, lags presented here should remain consistently low.
 
 ## Linear Regression
 
-In this method a relationship between a predictor x and a response y is established through a Linear Function with a coefficient the predictors and the intercept. 
+In this method a relationship between a predictor x and a response y is established through a Linear Function with a coefficient the predictors and the intercept.
 
 ### Data Cleaning and Preparation
 
@@ -130,7 +147,7 @@ placebo = c(ifelse(Reisby$week == 0, 1, 0))
 ```
 
 
-There are going to be two weeks variables, the initial week number for Autoregression and Gaussian Proccess, and another or on whether it is a placebo week or not for linear regression. 
+There are going to be two weeks variables, the initial week number for Auto-regression and Gaussian Process, and another or on whether it is a placebo week or not for linear regression. 
 
 #### Standardisation and Predictor Separation
 
@@ -163,7 +180,7 @@ Multiple Linear Regression is a simple extension of Linear regression where mult
 
 #### Modelling and Diagnostics
 
-```{r lin-mod, echo = FALSE}
+```{r lin-mod, echo = FALSE, message=FALSE, warning=FALSE, results='hide'}
 
 data = list(x = lin_x_scaled[,-1], y = y,
             n = nrow(lin_x_scaled), 
@@ -183,7 +200,7 @@ model {
   sd = pow(tau, -0.5)
 
   for (i in 1:n) {
-    y[i] ~ dnorm(mu[i], tau) T(0,60)
+    y[i] ~ dnorm(mu[i], tau) # T(0,60)
     mu[i] = b0 + inprod(b, x[i,])
   }
 
@@ -193,10 +210,10 @@ model {
 # model construction and sampling
 
 model_tc = textConnection(model_string)
-model = jags.model(model_tc, data = data, n.chains = 4)
+model = jags.model(model_tc, data = data, n.chains = 2)
 
 update(model, n.iter = 1000)
-samples = coda.samples(model, 
+lin_samples = coda.samples(model, 
                        variable.names = c("b0","sd","b"),
                        n.iter = 1000 * 13, thin = 13)
 lin_dic = dic.samples(model, 
@@ -205,28 +222,37 @@ lin_dic = dic.samples(model,
 
 ```
 
-The model was constructed in JAGS using a multiple linear regression based on a normal model using uninformative priors gamma (0.001, 0.001) for precision and N(0, 1E-6) for coefficients. The final model is truncated to values between 0 and 60 since this is the range for the Hamilton scores.
+The model was constructed in JAGS using a multiple linear regression based on a normal model using uninformative priors gamma(0.001, 0.001) for precision and $N(0, 10^6)$ for coefficients. The final model is truncated to values between 0 and 60 since this is the range for the Hamilton scores.
 
-The model was difficult to configure as $b0$, $b1$ and $b2$ had mixing issues observable in the trace plot, which only improved after a burn in and thinning. The level thinning was decided on using the autocorrelation plot which showed a need of thinning every 10th value for $b0$! When it came to other metrics, effective size reflected the high correlation with the $beta$ parameters - around 490 for $B1$ and 404 for $b0$, more than half of other parameters, but siginifcantly improved after thinning - most parameters around 6840-8380 Convergence was not a problem according to gelman diag diagnostics which remained near or at 1.0.
+The model was difficult to configure as $b0$, $b1$ and $b2$ had mixing issues observable in the trace plot, which only improved after a burn in and thinning. The level thinning was decided on using the auto-correlation plot which showed a need of thinning every 10th value for $b0$! When it came to other metrics, effective size reflected the high correlation with the $beta$ parameters - around 490 for $B1$ and 404 for $b0$, more than half of other parameters, but significantly improved after thinning - most parameters around 6840-8380 Convergence was not a problem according to gelman diagnostics which remained near or at 1.0.
 
+\newpage
 
 #### Summaries
 
-```{r lin-mod-sum}
+```{r lin-mod-sum, echo=FALSE}
 
-hpd = HPDinterval(samples)
-
-kable(hpd[[1]])
+hpd = HPDinterval(lin_samples)
+kable(hpd[[1]],
+      caption = "Multiple Linear Model Posterior Summary")
 
 ```
 
-#### Predictions
+#### DIC
+
+```{r lin-mod-dic, echo=FALSE}
+
+dic_table(lin_dic, "DIC for Multiple Linear Model")
+
+```
 
 ### Term Interactions
 
-#### Modelling and Diagnostics
+It is possible to extend Linear Models with term interactions. Term interactions are non-linear terms that extend linear model via relationships between variables (usually decided by a coefficient c). A potential interaction to add is between IMI and DMI since as stated in the data exploration stage these two predictors seem to interact, which is not surprising considering that DMI is the processed form of IMI. 
 
-```{r lin-mod-term}
+#### Modelling and Diagnostics (IMI and DMI)
+
+```{r term-mod, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
 
 data = list(x = lin_x_scaled[,-1], y = y,
             n = nrow(lin_x_scaled), 
@@ -247,7 +273,7 @@ model {
   sd = pow(tau, -0.5)
 
   for (i in 1:n) {
-    y[i] ~ dnorm(mu[i], tau) T(0,60)
+    y[i] ~ dnorm(mu[i], tau) # T(0,60)
     mu[i] = b0 + inprod(b, x[i,]) + c * x[i, 4] * x[i, 5]
   }
 
@@ -257,40 +283,68 @@ model {
 # model construction and sampling
 
 model_tc = textConnection(model_string)
-model = jags.model(model_tc, data = data, n.chains = 4)
+model = jags.model(model_tc, data = data, n.chains = 2)
 
 update(model, n.iter = 1000)
 terms_samples = coda.samples(model, 
-                       variable.names = c("b0","sd","b", "c"),
+                       variable.names = c("b0","sd","b"),
                        n.iter = 1000 * 13, thin = 13)
-dic_terms = dic.samples(model, 
-                       variable.names = c("b0","sd","b", "c"),
-                       n.iter = 1000 * 13, thin = 13)
+terms_dic = dic.samples(model, 
+                       variable.names = c("b0","sd","b"),
+                       n.iter = 1000 * 13, thin = 13) # 13
 
 ```
 
+The model was constructed in JAGS similarily to the previous multiple linear model, but a new prior for the coefficient c controlling the effect of the interaction is introduced with a uninformative prior of $N(0, 10^6)$.
 
 
 #### Summaries
 
-Not everyone was measured every week.
+```{r term-mod-sum, echo=FALSE}
+
+hpd = HPDinterval(terms_samples)
+kable(hpd[[1]],
+      caption =
+      "Linear Model with Interaction Terms Posterior Summary")
+
+```
+
+
+#### Comparison with Multiple Linear Regression (DIC)
+
+```{r term-mod-dic, echo=FALSE}
+
+dic_table(terms_dic,
+          "DIC for Multiple Linear Model
+          With IMI and DMI Interaction Terms")
+
+```
 
 ### Hierarchical
 
+Another possible extension to linear models is via hierarchies. This is done by considering that the data consists of groups which have different parameters. In this example we can consider that every individual is a different group (each person is different), which according to the wide range of scores observed in the exploration might be a reasonable assumption.
+
+#### ID Preparation
+
+```{r id-prep, echo=FALSE}
+
+h_lin_x_scaled = lin_x_scaled
+h_lin_x_scaled$id = as.factor(h_lin_x_scaled$id)
+levels(h_lin_x_scaled$id) = 1:length(levels(h_lin_x_scaled$id))
+
+```
+
+To make accessing users to find their groups easier the IDs are converted to (1,2, 3 ...) counting form using factors and levels.
+
 #### Modelling and Diagnostics
 
-
-```{r lin-mod-hie}
-
-lin_x_scaled_h = lin_x_scaled
-lin_x_scaled_h$id = as.factor(lin_x_scaled$id)
-levels(lin_x_scaled_h$id) <- 1:length(levels(lin_x_scaled_h$id))
+```{r h-mod, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
   
-data = list(x = lin_x_scaled_h[,-1], y = y,
-            n = nrow(lin_x_scaled_h), 
-            p = ncol(lin_x_scaled_h[,-1]),
-            n_subjects = length(unique(lin_x_scaled[,1])),
-            subject = lin_x_scaled_h$id)
+data = list(x = h_lin_x_scaled[,-1], y = y,
+            n = nrow(h_lin_x_scaled), 
+            p = ncol(h_lin_x_scaled[,-1]),
+            n_subjects = length(unique(h_lin_x_scaled[,1])),
+            subject = h_lin_x_scaled$id)
 
 # JAG model (as a string)
 
@@ -312,7 +366,7 @@ model {
   sd_hier = pow(tau_hier, -0.5)
 
   for (i in 1:n) {
-    y[i] ~ dnorm(mu[i], tau) T(0,60)
+    y[i] ~ dnorm(mu[i], tau) # T(0,60)
     mu[i] = b0 + inprod(b, x[i,]) + c[subject[i]]
   }
 
@@ -322,28 +376,50 @@ model {
 # model construction and sampling
 
 model_tc = textConnection(model_string)
-model = jags.model(model_tc, data = data, n.chains = 4)
+model = jags.model(model_tc, data = data, n.chains = 2)
 
-update(model, n.iter = 1000)
-samples = coda.samples(model, 
+update(model, n.iter = 1000) # 1000
+h_samples = coda.samples(model, 
                        variable.names = c("b0","sd","b", "sd_hier",
                                           "c"),
                        n.iter = 1000 * 13, thin = 13)
-dic_hie = dic.samples(model, 
-                       variable.names = c("b0","sd","b", "sd_hier",
-                                          "c"),
-                       n.iter = 1000 * 13, thin = 13)
+h_dic = dic.samples(model, 
+                       variable.names = c("b0","sd","b", "sd_hier"),
+                       n.iter = 1000 * 13, thin = 13) # 13
 
 ```
 
+Again, the model was constructed in JAGS similarily to the simple multiple linear model, but a new priors for the coefficients c controlling the effect of the groups is introduced with a uninformative prior of $N(0, gamma(0.001, 0.001))$.
+
+
 #### Summaries
 
-## Auto Regression
+```{r h-mod-sum, echo=FALSE}
 
-### Data Cleaning and Perparation
-### User Matricies
+hpd = HPDinterval(h_samples,
+                  caption =
+                 "Hierarchical Linear Model Posterior Summaries")
+kable(hpd[[1]][-7:-72,])
 
-```{r user-mat}
+```
+
+#### Comparison with Multiple Linear Regression (DIC)
+
+```{r h-mod-dic, echo=FALSE}
+
+dic_table(h_dic, "DIC for Hierarchical Multiple Linear Model")
+
+```
+
+## AR(1)
+
+AR models are time series model (allow dependence on responses of earlier times) that is based on a linear like model that predicts on a given number of previous responses with the help of "a" coefficients to control these previous responses effect. AR models also have another a0 coefficient usually referred to as a mean $mu$ which control convergence point. In this example, AR models would suggest that scores from previous weeks effect other weeks, which would not be a difficult assumption to make since the depression severity of a previous week is likely to impact the next.
+
+Since we are only dealing with 4 weeks, a AR model which uses the previous response only is a reasonable choice since there are not many previous responses to choose from!
+
+### Data Cleaning and Perparation (User Matricies)
+
+```{r user-mat, echo=FALSE}
 
 scaled_dmi = (Reisby$lnimi - mean(Reisby$lnimi))/sd(Reisby$lnimi)
 scaled_imi = (Reisby$lndmi - mean(Reisby$lndmi))/sd(Reisby$lndmi)
@@ -382,13 +458,17 @@ for(i in 1:length(ids)){
 
 ```
 
+However, a big problem with implementing AR models here arises because we need to use every user previous response not the previous response. And, as shown with the performance of the hierarchical model the individuals of the study are independent and using any other previous response would seriously negatively impact the model.
 
-### AR(1)
+Hence, to ensure that we only use previous responses of the same users the Hamilton scores are stored in a matrix of rows of user IDs and columns of weeks which will be iterated through using a nested loop. To also ensure that other predictors will be available during the nested loop, the other predictors are also stored in similar matricies.
 
-```{r ar1-model}
+#### Modelling and Diagnostics
+
+```{r ar1-mod, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
 
 ### Modelling (AR(1))
 
+# Reuse Hierarchical model ids 
 data = list(y = score_mat, x1 = imi_mat, x2 = dmi_mat, x3 = female_mat,
             x4 = dep_mat, nrow = nrow(score_mat), ncol = ncol(score_mat),
             p = 4)
@@ -400,15 +480,22 @@ model {
     b[j] ~ dnorm(0, 1E-6) 
   }
 
+  for (l in 1:nrow) {
+    c[l] ~ dnorm(0, tau_hier)
+  }
+
+  tau_hier ~ dgamma(0.001, 0.001)
+  sd_hier = pow(tau_hier, -0.5)
+
   for (i in 1:nrow) {
     for(k in 2:ncol){
       y[i,k] ~ dnorm (mu + a1 * (y[i, (k-1)] - mu) + 
                  x1[i, k] * b[1] + x2[i, k] * b[2] + 
-                 x3[i, k] * b[3] + x4[i, k] * b[4], tau) T(0,60)
+                 x3[i, k] * b[3] + x4[i, k] * b[4] + c[i], tau) # T(0,60)
     }
   }
 
-  mu ~ dnorm (0, 1E-6) T(0,60)
+  mu ~ dnorm(23, 1/7.183346^2) T(0,60)
   a1 ~ dnorm (0, 0.35^-2) 
   tau ~ dgamma (0.001, 0.001)
   sd = pow (tau , -0.5)
@@ -416,31 +503,38 @@ model {
 "
 
 model_tc = textConnection(model_string)
-model = jags.model(model_tc, data = data, n.chains = 4)
+model = jags.model(model_tc, data = data, n.chains = 2)
 
 ## Sampling
 
-update(model, n.iter = 4000)
-samples = coda.samples(model, variable.names = c("mu", "a1", "sd",
-                                                 "b"),
+update(model, n.iter = 4000) 
+ar1_samples = coda.samples(model, variable.names = c("mu", "a1", "sd",
+                                                     "b","sd_hier"),
                              n.iter = 1000 * 14, thin = 14)
 ar1_dic = dic.samples(model, variable.names = c("mu", "a1", "sd",
-                                                 "b"),
-                             n.iter = 1000 * 14, thin = 14)
+                                                 "b", "sd_hier"),
+                             n.iter = 1000 * 14, thin = 14) 
 
 ```
 
-
-#### Modelling and Diagnostics
-
-#### Summaries
-
-### Investigating Ideal Degree (finding p)
-
-#### Modelling and Diagnostics
+The AR(1) model is constructed in JAGS using an a1 coefficient based on a normal prior of $N(0, 0.35^2)$ to ensure it avoids values 1.0 and -1.0 which caused walking issues during diagnosis. The $mu$ parameter is based on informative prior of $N(23, 7^2)$ that is truncated to (0,60) (recall Hamilton score range), the use of the informative prior is based on the hamiltion score ranges explored in the data exploration stage and was done because mu had a very wide range with an uinformative prior. The precision of the AR model is using an uninformative prior of dgamma(0.001, 0.001). Finally, hierarchitcal behaviour is also introduced here since it proved to improve the model beahviour, the hierarchital c coefficient will be using a uninformative prior of $N(0, dgamma(0.001, 0.001)^-2)$ for every group as before.
 
 #### Summaries
 
+```{r ar1-mod-sum, echo=FALSE}
+
+hpd = HPDinterval(ar1_samples)
+kable(hpd[[1]], caption = "AR(1) Posterior Summaries")
+
+```
+
+#### Comparison with Hierarchical Linear Regression (DIC)
+
+```{r ar1-mod-dic, echo=FALSE}
+
+dic_table(ar1_dic, "DIC for AR(1) Model")
+
+```
 
 # Conclusion
 
@@ -459,64 +553,174 @@ AR - Auto Regressive Models
 
 AR(1) - Auto Regressive Models (1st Degree)
 
-AR(2) - Auto Regressive Models (2nd Degree)
-
 JAGS - Just Another Gibbs Sampler MCMC based Bayesian sampler 
 
 MCMC - Markov chain Monte Carlo
 
+DIC - Deviance Information Criterion
 
-## Code
+\newpage
 
-### Data
+## Functions Code
 
-#### Data Loading
+##### DIC Table
 
-```{r, ref.label= 'data', echo=TRUE, eval=FALSE}
-
-```
-
-#### Correlation (Pairs Plot)
-
-```{r, ref.label= 'pairs', echo=TRUE, eval=FALSE}
+```{r, ref.label = 'dic-func', echo=TRUE, eval=FALSE}
 
 ```
 
-#### Hamilton Scores Histogram
+## Data and Exploration Code
 
-```{r, ref.label= 'ham-hist', echo=TRUE, eval=FALSE}
+##### Data Loading
 
-```
-
-#### Sex Histogram
-
-```{r, ref.label= 'sex-hist', echo=TRUE, eval=FALSE}
+```{r, ref.label = 'data', echo=TRUE, eval=FALSE}
 
 ```
 
-#### Depression Type Histogram
+##### Correlation (Pairs Plot)
 
-```{r, ref.label= 'dep-type-hist', echo=TRUE, eval=FALSE}
-
-```
-
-#### DMI and IMI Boxplot
-
-```{r, ref.label= 'dmi-imi-boxplot', echo=TRUE, eval=FALSE}
+```{r, ref.label = 'pairs', echo=TRUE, eval=FALSE}
 
 ```
 
-#### Weeks Cleaining
+##### Hamilton Scores Histogram
 
-```{r, ref.label= 'weeks-cleaning', echo=TRUE, eval=FALSE}
-
-```
-
-### Models
-
-#### Basic Multiple Linear Regression
-
-```{r, ref.label= 'lin-mod', echo=TRUE, eval=FALSE}
+```{r, ref.label = 'ham-hist', echo=TRUE, eval=FALSE}
 
 ```
 
+##### Sex Histogram
+
+```{r, ref.label = 'sex-hist', echo=TRUE, eval=FALSE}
+
+```
+
+##### Depression Type Histogram
+
+```{r, ref.label = 'dep-type-hist', echo=TRUE, eval=FALSE}
+
+```
+
+##### DMI and IMI Boxplot
+
+```{r, ref.label = 'dmi-imi-boxplot', echo=TRUE, eval=FALSE}
+
+```
+
+\newpage
+
+## Multiple Linear Model Code
+
+##### Weeks Cleaining
+
+```{r, ref.label = 'clean-weeks', echo=TRUE, eval=FALSE}
+
+```
+
+##### Predictor Separation
+
+```{r, ref.label = 'pred-sep', echo=TRUE, eval=FALSE}
+
+```
+
+##### Standarisation 
+
+```{r, ref.label = 'std', echo=TRUE, eval=FALSE}
+
+```
+
+##### Model
+
+```{r, ref.label = 'lin-mod', echo=TRUE, eval=FALSE}
+
+```
+
+##### Summary
+
+```{r, ref.label = 'lin-mod-sum', echo=TRUE, eval=FALSE}
+
+```
+
+##### DIC
+
+```{r, ref.label = 'lin-mod-dic', echo=TRUE, eval=FALSE}
+
+```
+
+\newpage
+
+## Linear Term Interactions Code
+
+##### Model
+
+```{r, ref.label = 'term-mod', echo=TRUE, eval=FALSE}
+
+```
+
+##### Summary
+
+```{r, ref.label = 'term-mod-sum', echo=TRUE, eval=FALSE}
+
+```
+
+##### DIC
+
+```{r, ref.label = 'term-mod-dic', echo=TRUE, eval=FALSE}
+
+```
+
+\newpage
+
+## Linear Hierarchical Code
+
+##### ID Perparation
+
+```{r, ref.label = 'id-prep', echo=TRUE, eval=FALSE}
+
+```
+
+##### Model
+
+```{r, ref.label = 'h-mod', echo=TRUE, eval=FALSE}
+
+```
+
+##### Summary
+
+```{r, ref.label = 'h-mod-sum', echo=TRUE, eval=FALSE}
+
+```
+
+##### DIC
+
+```{r, ref.label = 'h-mod-dic', echo=TRUE, eval=FALSE}
+
+```
+
+\newpage
+
+## AR Code
+
+##### User Matricies Construction
+
+```{r, ref.label = 'user-mat', echo=TRUE, eval=FALSE}
+
+```
+
+##### Model
+
+```{r, ref.label = 'ar1-mod', echo=TRUE, eval=FALSE}
+
+```
+
+##### Summary
+
+```{r, ref.label = 'ar1-mod-sum', echo=TRUE, eval=FALSE}
+
+```
+
+##### DIC
+
+```{r, ref.label = 'ar1-mod-dic', echo=TRUE, eval=FALSE}
+
+```
