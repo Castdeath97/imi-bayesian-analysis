@@ -20,22 +20,25 @@ opts_chunk$set(echo = TRUE)
 # Creates a table for DIC with a given caption
 dic_table <- function(dic, caption) {
   
+  # Find values 
   mean_dev = round(c(sum(dic$deviance)))
   pen = round(c(sum(dic$penalty)), 2)
   mean_pen_dev = round(c(mean_dev+pen))
   
+  # Create DF
   dic.data = data.frame(mean_dev, pen, mean_pen_dev)
   
-    kable(dic.data, col.names = 
-          c("Deviation", "Penalty", "Penalised Dev."),
-          caption = caption)
+  # Print DF using kable
+  kable(dic.data,
+        col.names = c("Deviation", "Penalty", "Penalised Dev."),
+        caption = caption)
 }
 
 ```
 
 # Introduction
 
-This report summaries the Bayesian analysis of the Reisby data-set. The Reisby data-set is based on a 5 week (first placebo) psychiatric study which investigates response of depressed patients to IMI. The Bayesian analysis will investigate how the drug affects depression. 
+This report summaries the Bayesian analysis of the Reisby data-set. The Reisby data-set is based on a 4 week (first placebo) psychiatric study which investigates response of depressed patients to IMI. The Bayesian analysis will investigate how the drug affects depression via the Hamilton Depression Score.
 
 # Data Setup and Cleaning
 
@@ -75,7 +78,7 @@ hist(Reisby$hd, main = "Hamilton Index Scores Histogram",
 
 ```
 
-Most Hamilton scores are above 20 (i.e. moderate and severe depression dominates against mild and normal).
+Most Hamilton scores are above 20 (i.e. moderate and severe depression dominates against mild/normal).
 
 \newpage
 
@@ -91,7 +94,7 @@ axis(1, at=0:1, labels=c("Male","Female"))
 
 ```
 
-The female test subjects are overwhelmingly higher than the males (nearly double!).
+The female test subjects are overwhelmingly higher than the males (nearly double!). 
 
 \newpage
 
@@ -119,7 +122,7 @@ axis(1, at=0:2, labels=c("IMI","IMI", "DMI")) # uses 3 labels due to strange bug
 
 ```
 
-Generally tight distribution *especially around 25% to 75%) for both with little outlines with both distribution looking nearly identical sans the shift up with DMI. It seems that after being processed as DMI, the concentration of the antidepressant in the blood increases.
+Generally tight distribution *especially around 25% to 75%) for both with little outliers. Both distributions look nearly identical sans the shift up with DMI. It seems that after being processed as DMI, the concentration of the antidepressant in the blood increases.
 
 # Models
 
@@ -127,10 +130,10 @@ Generally tight distribution *especially around 25% to 75%) for both with little
 
 For diagnostics, all models start with 1000 samples with no thinning and no burn in discard. The models are then diagnosed using the following techniques/measurements:
 
-* Trace plots: Used to observe general mixing via parameter values, aim to have random caterpillar like shape.
-* Effective size: Used to observe correlation effect on data by check how effective the samples are compared to independent data. Aim to have them consistently close and somewhere near half the samples.
-* Gelman Rubin: Used to check convergence of model through comparing chains, aim to have value of 1 or very close to 1.
-* auto-correlation plots: Useful to check need for thinning and thinning effect by checking sample correlations between each other, lags presented here should remain consistently low.
+* Trace plots: Used to observe general mixing via parameter values. Aim to have random caterpillar like shape or the traces.
+* Effective size: Used to observe correlation effect on data by checking how effective the samples are compared to independent data. Aim to have them consistently close and somewhere near half the samples.
+* Gelman Rubin: Used to check convergence of model by comparing MCMC chains, aim to have values of 1 or very close to 1 (less than 1.2 or ideally less than 1.05).
+* Auto-correlation plots: Useful to check need for thinning and the effect of thinning by checking correlations between sample, lags presented here should remain consistently low.
 
 ## Linear Regression
 
