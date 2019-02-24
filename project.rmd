@@ -158,7 +158,7 @@ Need to have weeks represented as a predictor that indicates on whether it is a 
 
 #### Standardisation and Predictor Separation
 
-The response (Hamilton index) and predictors (everything else) are separated for the modelling stage. All non indicator predictors (IMI and DMI) are standardised (substracted by mean divide by standard deviation) to ensure that predictor impact is not decided by their measurement scale.
+The response (Hamilton index) and predictors (everything else) are separated for the modelling stage. All non indicator predictors (IMI and DMI) are standardised (subtracted by mean divide by standard deviation) to ensure that predictor impact is not decided by their measurement scale.
 
 ```{r pred-sep, echo = FALSE}
 
@@ -251,7 +251,7 @@ lin_dic = dic.samples(model,
 
 The model was constructed in JAGS using a multiple linear regression based on a normal distribution using uninformative priors gamma(0.001, 0.001) for precision and $N(0, 10^6)$ for coefficients. Truncation to (0,60) was considered for The final model is (range for the Hamilton scores), but was dropped due to performance issues and minor DIC improvement.
 
-For the diagnosis, initially the trace plot showed good catepillar like shape and the Gelman-Rubin scores were close to 1 (highest 1.04 for upper b0), but the sample sizes of b1 and b0 were poor (around 600 compared to 1400-3800 for other parameters), and their auto correlation plots shows signifcant lag till around 7-8. A burn in discard of a 1000 and a thin of 8 seemed to have fixed the problem (no signifcant initial lag and sample sizes around 3600-4500).
+For the diagnosis, initially the trace plot showed good caterpillar like shape and the Gelman-Rubin scores were close to 1 (highest 1.04 for upper b0), but the sample sizes of $b1$ and $b0$ were poor (around 600 compared to 1400-3800 for other parameters), and their auto correlation plots shows significant lag till around 7-8. A burn in discard of a 1000 and a thin of 8 seemed to have fixed the problem (no significant initial lag and sample sizes around 3600-4500).
 
 
 \newpage
@@ -266,7 +266,7 @@ kable(hpd[[1]],
 
 ```
 
-The highest intervals for most coefficient seems rather wide (makes it difficult to make comments!), which could be due to factors like uncertainity about their effect in the model and/or due to limited data samples. Nonetheless, the results show that $b5$ shows the most negative effect on the score (more IMI in blood makes you less depressed) and $b3$ shows the most positive effect on the score (being in a placebo week makes you more depressed). The Standard Deviations are relatively wide around 6-7, and a $b0$ of around 21-25 suggests that if all the impacts of other parameters adds up to zero the expected score is that.
+The highest intervals for most coefficient seems rather wide (makes it difficult to make comments!), which could be due to factors like uncertainty about their effect in the model and/or due to limited data samples. Nonetheless, the results show that $b5$ shows the most negative effect on the score (more IMI in blood makes you less depressed) and $b3$ shows the most positive effect on the score (being in a placebo week makes you more depressed). The Standard Deviations are relatively wide around 6-7, and a $b0$ of around 21-25 suggests that if all the impacts of other parameters adds up to zero the expected score is that.
 
 #### DIC
 
@@ -339,25 +339,26 @@ terms_dic = dic.samples(model, n.iter = iter * thin, thin = thin)
 
 ```
 
-The model was constructed in JAGS similarily to the previous multiple linear model, but a new prior for the coefficient c controlling the effect of the interaction is introduced with a uninformative prior of $N(0, 10^6)$.
+The model was constructed in JAGS similarly to the previous multiple linear model, but a new prior for the coefficient c controlling the effect of the interaction is introduced with a uninformative prior of $N(0, 10^6)$.
 
-When it comes to the diagnostics, the trace plots here showed burn in issues with initial values changing rapidly suggesting that perhaps the effect of coefficient c is poorly understood initally and some burn in is needed. However, Other diagnostics showed similar results  to the previous model, as Gelam showed convergence, small $b0$ and $b1$ effective sizes were observed (around 500) and lastly lag of up to 9 was observed in the auto-correleation plots with $b0$ and $b1$ being the worst. Nonetheless, the addition of a burn in discard of 2000 and thinning value of 9, the issues with the trace plots were gone and the effective sizes were now similar to the previous model being around 3800-4500.
+When it comes to the diagnostics, the trace plots here showed burn in issues with initial values changing rapidly suggesting that perhaps the effect of coefficient c is poorly understood initially and some burn in is needed. However, Other diagnostics showed similar results  to the previous model, as Gelam showed convergence, small $b0$ and $b1$ effective sizes were observed (around 500) and lastly lag of up to 9 was observed in the auto-correlation plots with $b0$ and $b1$ being the worst. Nonetheless, the addition of a burn in discard of 2000 and thinning value of 9, the issues with the trace plots were gone and the effective sizes were now similar to the previous model being around 3800-4500.
 
 
-#### Posterior Summaries (Highest Interval Densities)
+#### Posterior Summaries (IMI and DMI Highest Interval Densities)
 
 ```{r term-mod-sum, echo=FALSE}
 
 hpd = HPDinterval(terms_samples)
 kable(hpd[[1]],
       caption =
-      "Linear Model with Interaction Terms Posterior Summary")
+      "Linear Model with IMI and DMI
+      Interaction Terms Posterior Summary")
 
 ```
 
 The posterior summaries seem similar in fact near identical, with wide coefficients, strong negative $b5$ and strong positive $b3$, a similar $sd$ and $b0$. The effect of C seems to range from around -0.90 to 1.0 suggesting a varied effect based on individual.
 
-#### Comparison with Multiple Linear Regression (DIC)
+#### Comparison with Multiple Linear Regression (IMI and DMI DIC)
 
 ```{r term-mod-dic, echo=FALSE}
 
@@ -367,11 +368,95 @@ dic_table(terms_dic,
 
 ```
 
-Unsuprisngly, the similarities in the posterior translated to similar DIC results which showed penalised deviance that is within room for error. It seems the interaction did not cause any significant differences to the model! This is perhaps because a strong interaction effect between IMI and DMI is not supported by the available data. The reason for this is perhaps because of the weak correlation between the values (seen in exploration), and perhaps also the variable and difficult to predict effect (seen in c posterior summary).
+Unsurprisingly, the similarities in the posterior translated to similar DIC results which showed penalized deviance that is within room for error. It seems the interaction did not cause any significant differences to the model! This is perhaps because a strong interaction effect between IMI and DMI is not supported by the available data. The reason for this is perhaps because of the weak correlation between the values (seen in exploration), and perhaps also the variable and difficult to predict effect (seen in c posterior summary).
+
+#### Modelling and Diagnostics (Female & Reactive Depression)
+
+Since the other interaction did not yield any strong results another one is tried. The only remaining obvious interaction is between sex and depression type, perhaps sex plays a role on most likely type of depression?
+
+```{r term2-mod, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+
+# Parameters to pass to JAGS
+
+data = list(x = lin_x_scaled[,-1], y = y,
+            n = nrow(lin_x_scaled), 
+            p = ncol(lin_x_scaled[,-1]))
+
+# JAGS model (as a string)
+
+model_string = "
+model {
+  
+  # Coefficients and interaction
+
+  b0 ~ dnorm(0, 1E-6) 
+  c ~ dnorm(0, 1E-6)
+
+  for (j in 1:p) {
+    b[j] ~ dnorm(0, 1E-6)
+  }
+
+  # Model
+
+  tau ~ dgamma(0.001, 0.001)
+  sd = pow(tau, -0.5)
+
+  for (i in 1:n) {
+    y[i] ~ dnorm(mu[i], tau)
+    mu[i] = b0 + inprod(b, x[i,]) + c * x[i, 1] * x[i, 2]
+  }
+
+}
+"
+
+# model compilation and sampling
+
+thin = 24
+iter = 1000
+
+model_tc = textConnection(model_string)
+model = jags.model(model_tc, data = data, n.chains = 4)
+
+update(model, n.iter = iter*2)
+
+terms2_samples = coda.samples(model,
+                              variable.names = c("b0","sd","b", "c"),
+                              n.iter = iter * thin, thin = thin)
+
+terms2_dic = dic.samples(model, n.iter = iter * thin, thin = thin) 
+
+```
+
+The model is practical identical to the previous interaction model bar the variables being used for the interaction, hence the same tuning is carried over and verified. Some additional thinning (24) was needed according to small c and $b0$ sample sizes (around 1800 for c and 2100 for $b0$) and lag up around 4 for both which remained for a while even with high thinning,
+
+#### Posterior Summaries (Female & Reactive Depression Highest Interval Densities)
+
+```{r term2-mod-sum, echo=FALSE}
+
+hpd = HPDinterval(terms2_samples)
+kable(hpd[[1]],
+      caption =
+      "Linear Model with Interaction Terms 
+      (Female & Reactive) Posterior Summary")
+
+```
+
+The most obvious change compared to the other interaction model is the different c parameter value, which is significantly higher with a positive value suggesting a positive relationship. Some of the other parameters changed as well, as for instance the coefficients for sex and reactive depression have a strong negative impact now (females and reactive depression type patients more depressed).
+
+#### Comparison with Multiple Linear Regression (Female & Reactive Depression DIC)
+
+```{r term2-mod-dic, echo=FALSE}
+
+dic_table(terms2_dic, "DIC for Linear Model with interaction terms
+          (Female & Reactive)")
+
+```
+
+Unfortunately, even though this model seems to perform better than the previous two, it seems that again the improvement is not significant, and hence the evidence that this model or its assumptions are correct is not too strong. Again, this could be either because this interaction is not supported by the data.
 
 ### Hierarchical
 
-Another possible extension to linear models is via hierarchies. This is done by considering that the data consists of groups which have different parameters for their distruibutions. In this example we can consider that every individual is a different group (each person is different), which according to the wide range of scores observed in the exploration stage and the uncertainity in the coefficients seen in the previous models might be a reasonable assumption.
+Another possible extension to linear models is via hierarchies. This is done by considering that the data consists of groups which have different parameters for their distributions. In this example we can consider that every individual is a different group (each person is different), which according to the wide range of scores observed in the exploration stage and the uncertainty in the coefficients seen in the previous models might be a reasonable assumption.
 
 #### ID Preparation
 
@@ -454,11 +539,11 @@ h_dic = dic.samples(model, n.iter = iter * thin, thin = thin)
 
 ```
 
-Again, the model was constructed in JAGS similarily to the simple multiple linear model, but with new priors for the c parameters controlling the effect of the groups is introduced with a uninformative prior of $N(0, gamma(0.001, 0.001))$.
+Again, the model was constructed in JAGS similarly to the simple multiple linear model, but with new priors for the c parameters controlling the effect of the groups is introduced with a uninformative prior of $N(0, gamma(0.001, 0.001))$.
 
-For the diagnosis, the trace plots showed similar behaviour to the previous interaction model, with most parameters changing rapidly initally suggesting a need for burn in and a misundertsood effect for the c parameters. When it comes to the other diagnosis methods, they seem to show significant issues with b1, b2 and b0 with tiny effective size (around 40-90!), poor convergence (uppers of 1.19 for b1, 1.09 for b2 and 1.21 for b0) and lastly significant lag (around 20-26 for most $b$ parameters including b1,b2 and b0).
+For the diagnosis, the trace plots showed similar behavior to the previous interaction models, with most parameters changing rapidly initially suggesting a need for burn in and a misunderstood effect for the c parameters. When it comes to the other diagnosis methods, they seem to show significant issues with $b1$, $b2$ and $b0$ with tiny effective size (around 40-90!), poor convergence (uppers of 1.19 for $b1$, 1.09 for $b2$ and 1.21 for $b0$) and lastly significant lag (around 20-26 for most $b$ parameters including $b1$,$b2$ and $b0$).
 
-Hence, to resolve these issues, a burn in discard of 3000, a thinning value of 40 and an increase of samples sizes to 2000 were introduced. This resolved most of the issues as the inital lag in the trace plots was one or two at worst and effective sizes were now more balanced around 5500-8000.
+Hence, to resolve these issues, a burn in discard of 3000, a thinning value of 40 and an increase of samples sizes to 2000 were introduced. This resolved most of the issues as the initial lag in the trace plots was one or two at worst and effective sizes were now more balanced around 5500-8000.
 
 #### Posterior Summaries (Highest Interval Densities)
 
@@ -471,9 +556,9 @@ kable(hpd[[1]][-7:-72,])
 
 ```
 
-While again similar to previous models, these results sho some noticiable changes with some parameters, as most parameters are now wider except $b5$ (IMI drug) and $b3$ (placebo) which are narrower (especially at the lower and upper level respectively). This perhaps suggests that a lower effect of the drug a more varied effect due to other factors compared to other models.
+While again similar to previous models, these results show some noticeable changes with some parameters, as most parameters are now wider except $b5$ (IMI drug) and $b3$ (placebo) which are narrower (especially at the lower and upper level respectively). This perhaps suggests that a lower effect of the drug a more varied effect due to other factors compared to other models.
 
-#### Comparison with Multiple Linear Regression (DIC)
+#### Comparison with Multiple Linear Regression with Terms (DIC)
 
 ```{r h-mod-dic, echo=FALSE}
 
@@ -481,7 +566,7 @@ dic_table(h_dic, "DIC for Hierarchical Multiple Linear Model")
 
 ```
 
-This model seems to do noticibly better than the previous two with a lower penalised deviance of around 1500 compared to the previous two of around 1660. This proves that each person acts as a different group with different distrubution beahviour which explains the uncertainity. 
+This model seems to do noticeably better than the previous two with a lower penalized deviance of around 1500 compared to the previous two of around 1660. This proves that each person acts as a different group with different distribution behavior which explains the uncertainty. 
 
 ## AR(1)
 
@@ -541,7 +626,7 @@ for(i in 1:length(ids)){
 
 However, a big problem with implementing AR models here arises because we need to use every subject previous response not any previous response. And, as shown with the performance of the hierarchical model the individuals of the study have a strong level of independence and using any other previous response would seriously negatively impact the model.
 
-Hence, to ensure that we only use previous responses of the same subjects the Hamilton scores are stored in a matrix of rows of subject IDs and columns of weeks which will be iterated through using a nested loop. To also ensure that other predictors will be available during the nested loop, the other predictors are also stored in similar matricies.
+Hence, to ensure that we only use previous responses of the same subjects the Hamilton scores are stored in a matrix of rows of subject IDs and columns of weeks which will be iterated through using a nested loop. To also ensure that other predictors will be available during the nested loop, the other predictors are also stored in similar matrices.
 
 However, since not all test subjects have results for all weeks we can only use a portion of the subject (52 instead of 66), this may effect results.
 
@@ -614,9 +699,9 @@ ar1_dic = dic.samples(model, n.iter = iter * thin, thin = thin)
 
 ```
 
-The AR(1) model is constructed in JAGS using an a1 coefficient based on a normal prior of $N(0, 0.35^2)$ to ensure it avoids values 1.0 and -1.0 which caused walking issues during diagnosis. The $mu$ parameter is based on weakly informative a prior of $N(0, 10^6)$ that is truncated to (0,60), the use of the informative prior is based on the hamiltion score ranges and was done because mu had a very wide range with a full uinformative prior. The precision of the AR model is using an uninformative prior ofdgamma(0.001, 0.001). Finally, hierarchitcal behaviour is also introduced here since it proved to improve the model beahviour, the hierarchital c coefficient will be using an uninformative prior of $N(0, dgamma(0.001, 0.001)^-2)$ for every group as before.
+The AR(1) model is constructed in JAGS using an a1 coefficient based on a normal prior of $N(0, 0.35^2)$ to ensure it avoids values 1.0 and -1.0 which caused walking issues during diagnosis. The $mu$ parameter is based on weakly informative a prior of $N(0, 10^6)$ that is truncated to (0,60), the use of the informative prior is based on the Hamilton score ranges and was done because mu had a very wide range with a full uninformative prior. The precision of the AR model is using an uninformative prior of gamma(0.001, 0.001). Finally, hierarchical behavior is also introduced here since it proved to improve the model behavior, the hierarchical c coefficient will be using an uninformative prior of $N(0, dgamma(0.001, 0.001)^-2)$ for every group as before.
 
-During diagnosis, the model displayed similar behaviour to the previous model, with its parameters (espcially a1 and hierachical standard deviation) showing initial rapid changes which shows a burn in discard requirement. But, it seems most of the convergence and correleration issues moved to the hierartical standard deviation with very high Gelman-Rubin upper interveral of 1.75, very poor effectve size around 50 and significant lag till around 90. Hence, a significant thinning of 100 was introduced with increased sample sizes of 3000 which made it converge and fixed most of the correlation issues, but it still had inital lag of around 5 at worst and poor effective sizes of around 5000 vs 12000 for other parameters.
+During diagnosis, the model displayed similar behavior to the previous model, with its parameters (especially a1 and hierarchical standard deviation) showing initial rapid changes which shows a burn in discard requirement. But, it seems most of the convergence and correlation issues moved to the hierarchical standard deviation with very high Gelman-Rubin upper interval of 1.75, very poor effective size around 50 and significant lag till around 90. Hence, a significant thinning of 100 was introduced with increased sample sizes of 3000 which made it converge and fixed most of the correlation issues, but it still had initial lag of around 5 at worst and poor effective sizes of around 5000 vs 12000 for other parameters.
 
 #### Posterior Summaries (Highest Interval Densities)
 
@@ -627,11 +712,11 @@ kable(hpd[[1]], caption = "AR(1) Posterior Summaries")
 
 ```
 
-An a1 parameter of around 0.7-0.91 suggests a decyaing random walk converging to a given value. For the other parameters it seems that the mu parameter is quite wide, suggesting that it is difficult to come to a consensus about the average score. 
+An a1 parameter of around 0.7-0.91 suggests a decaying random walk converging to a given value. For the other parameters it seems that the mu parameter is quite wide, suggesting that it is difficult to come to a consensus about the average score. 
 
-When it comes to the $b$ coefficients, their values seemed to have narrowed down alongside the standard deviation. Interestingly, this model thinks the strongest negative impact on score can be the type of depression $b4$ (being reactive), but that it can also be postively impacting as well (i.e. people who have reactive depression can be more depressed but also less depressed than non-reactive depression patients depending on the person). Also, surpringly, the strongest positively impacting coefficient is now the sex, with female being more depressed (but sometimes this can be the other way around!).
+When it comes to the $b$ coefficients, their values seemed to have narrowed down alongside the standard deviation. Interestingly, this model thinks the strongest negative impact on score can be the type of depression $b4$ (being reactive), but that it can also be positively impacting as well (i.e. people who have reactive depression can be more depressed but also less depressed than non-reactive depression patients depending on the person). Also, surprisingly, the strongest positively impacting coefficient is now the sex, with female being more depressed (but sometimes this can be the other way around!).
 
-When it comes to the impact of the drug itself, this model suggests it is mostly negative according to b1 and b2 (imi and dmi), but not as strong as other models suggested it is!
+When it comes to the impact of the drug itself, this model suggests it is mostly negative according to $b1$ and $b2$ (IMI and DMI), but not as strong as other models suggested it is!
 
 #### Comparison with Hierarchical Linear Regression (DIC)
 
@@ -641,21 +726,21 @@ dic_table(ar1_dic, "DIC for AR(1) Model")
 
 ```
 
-This model seems to perform significantly better than all the other models introduced here! With DIC penalised scores around 930 compared to the other models (around 1500-1660). This not only shows that there is indeed evidence of dependence between results of different weeks, but also that the assumptions made on the last section based on the summaries might also be true!
+This model seems to perform significantly better than all the other models introduced here! With DIC penalized scores around 930 compared to the other models (around 1500-1660). This not only shows that there is indeed evidence of dependence between results of different weeks, but also that the assumptions made on the last section based on the summaries might also be true!
 
-However, this is assuming that the subsetting of the data-set to only include the patients with full records every week did not impact the model!
+However, this is assuming that the sub-setting of the data-set to only include the patients with full records every week did not impact the model!
 
 \newpage
 
 # Conclusion
 
-In conclusion, when it comes to modelling the problem itself it seems that the AR(1) model with hierarchies performed best according to its DIC scores, and hence it is the selected model to represent the problem. The choice model suggested that there is dependence between the depression score and weeks, and that each person acts as a unique group when it comes to their depression behaviour.
+In conclusion, when it comes to modelling the problem itself it seems that the AR(1) model with hierarchies performed best according to its DIC scores, and hence it is the selected model to represent the problem. The choice model suggested that there is dependence between the depression score and weeks, and that each person acts as a unique group when it comes to their depression behavior.
 
 The summaries of the chosen model and the others suggested that the IMI drug reduces the patients depression scores, however other factors like the type of depression and sex can have a strong impact as well depending on the individuals.
 
-However, some issues there were some issues with the analysis and the data. The exploration stage showed that the sexes are not well represented in the data, moreover as seen during the AR(1) model construction not all patients had records for all weeks, hence the AR(1) model nly considered a subset of the data which may have effected results.
+However, some issues there were some issues with the analysis and the data. The exploration stage showed that the sexes are not well represented in the data, moreover as seen during the AR(1) model construction not all patients had records for all weeks, hence the AR(1) model only considered a subset of the data which may have effected results.
 
-In the future, it might be wise to try this analysis with a different data-set, perhaps ones with a different sex distribution or even more weeks to try a different AR model with more dependent previous results. Moreover, it might also be wise to try a multi-class classification method to ensure models only predict at excat classes.
+In the future, it might be wise to try this analysis with a different data-set, perhaps ones with a different sex distribution or even more weeks to try a different AR model with more dependent previous results. Moreover, it might also be wise to try a multi-class classification method to ensure models only predict at exact classes.
 
 \newpage
 
@@ -769,23 +854,42 @@ DIC - Deviance Information Criterion
 
 ## Linear Term Interactions Code
 
-##### Model
+##### Model (IMI & DMI)
 
 ```{r, ref.label = 'term-mod', echo=TRUE, eval=FALSE}
 
 ```
 
-##### Summary
+##### Summary (IMI & DMI)
 
 ```{r, ref.label = 'term-mod-sum', echo=TRUE, eval=FALSE}
 
 ```
 
-##### DIC
+##### DIC (IMI & DMI)
 
 ```{r, ref.label = 'term-mod-dic', echo=TRUE, eval=FALSE}
 
 ```
+
+##### Model (Reactive & Female)
+
+```{r, ref.label = 'term2-mod', echo=TRUE, eval=FALSE}
+
+```
+
+##### Summary (Reactive & Female)
+
+```{r, ref.label = 'term2-mod-sum', echo=TRUE, eval=FALSE}
+
+```
+
+##### DIC (Reactive & Female)
+
+```{r, ref.label = 'term2-mod-dic', echo=TRUE, eval=FALSE}
+
+```
+
 
 \newpage
 
