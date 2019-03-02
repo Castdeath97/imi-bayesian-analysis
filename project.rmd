@@ -566,7 +566,7 @@ dic_table(h_dic, "DIC for Hierarchical Multiple Linear Model")
 
 ```
 
-This model seems to do noticeably better than the previous two with a lower penalized deviance of around 1500 compared to the previous two of around 1660. This proves that each person acts as a different group with different distribution behavior which explains the uncertainty. 
+This model seems to do noticeably better than the previous two with a lower penalized deviance of around 1500 compared to the previous two of around 1650-1665. This proves that each person acts as a different group with different distribution behavior which explains the uncertainty. 
 
 ## AR(1)
 
