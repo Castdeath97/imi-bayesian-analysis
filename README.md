@@ -1,11 +1,6 @@
 # imi-bayesian-analysis
 Bayesain Analysis on response of patients to the antidepressant drug imipramine (IMI)
 
-boston-modelling
-==============================
-
-Modelling of boston housing dataset in R
-
 Project Organization
 ------------
 
